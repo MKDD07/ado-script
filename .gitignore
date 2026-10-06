@@ -1,2 +1,7 @@
-.DS_Store
-Thumbs.db
+# Ignore everything
+/*
+
+# Whitelist ONLY banganga-blog.html and blog-ai-summary.js
+!banganga-blog.html
+!blog-ai-summary.js
+!.gitignore
