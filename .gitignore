@@ -1,7 +1,13 @@
 # Ignore everything
 /*
 
-# Whitelist ONLY banganga-blog.html and blog-ai-summary.js
+# Whitelist files required in repo
 !banganga-blog.html
 !blog-ai-summary.js
 !.gitignore
+!.github/
+!.github/**
+
+# Never commit local secrets or generated runtime configs
+.env
+config.js

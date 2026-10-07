@@ -1,0 +1,52 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Copy entrypoint for GitHub Pages
+        run: |
+          # Ensure index.html exists for GitHub Pages root
+          cp banganga-blog.html index.html
+
+      - name: Inject Groq Configuration
+        run: |
+          cat << 'EOF' > config.js
+          window.env = {
+            GROQ_API_KEY: "${{ secrets.GROQ_API_KEY }}",
+            GROQ_CHAT_MODEL: "openai/gpt-oss-120b",
+            GROQ_API_BASE: "https://api.groq.com/openai/v1"
+          };
+          EOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
