@@ -1145,9 +1145,33 @@
       });
     }
 
+    /**
+     * Fetch with exponential backoff retry for rate-limiting (429).
+     * Respects the Retry-After header when present.
+     * @param {string} url
+     * @param {RequestInit} options
+     * @param {number} maxRetries
+     */
+    async function fetchWithRetry(url, options, maxRetries = 3) {
+      let delay = 2000; // initial wait: 2s
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const res = await fetch(url, options);
+        if (res.status !== 429) return res;
+        if (attempt === maxRetries) return res; // return 429 on final attempt
+        // Respect Retry-After header if provided
+        const retryAfter = res.headers.get("Retry-After");
+        const waitMs = retryAfter ? Math.ceil(parseFloat(retryAfter)) * 1000 : delay;
+        console.warn(`[Groq] Rate limited (429). Retrying after ${waitMs}ms (attempt ${attempt + 1}/${maxRetries})...`);
+        await new Promise(r => setTimeout(r, waitMs));
+        delay = Math.min(delay * 2, 16000); // cap at 16s
+      }
+    }
+
     // Generate live summary from page content
+    let summaryGenerating = false;
     async function generateSummaryLive() {
-      if (summaryGenerated) return;
+      if (summaryGenerated || summaryGenerating) return;
+      summaryGenerating = true;
       summaryGenerated = true;
 
       if (!highlightsSec || !leadEl || !bulletList) return;
@@ -1170,7 +1194,7 @@
       `;
 
       try {
-        const r = await fetch(API + "/chat/completions", {
+        const r = await fetchWithRetry(API + "/chat/completions", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1194,7 +1218,10 @@
           })
         });
 
-        if (!r.ok) throw new Error("Could not generate summary");
+        if (!r.ok) {
+          if (r.status === 429) throw new Error("rate_limited");
+          throw new Error("Could not generate summary");
+        }
         const resData = await r.json();
         const rawContent = resData.choices[0]?.message?.content || "";
         const content = rawContent.replace(/\*/g, "");
@@ -1247,6 +1274,7 @@
       } finally {
         if (badgeEl) badgeEl.classList.remove("generating");
         if (aiModal) aiModal.classList.remove("generating");
+        summaryGenerating = false;
       }
     }
 
@@ -1494,7 +1522,7 @@
     }
 
     async function stream(system, user, typer) {
-      const r = await fetch(API + "/chat/completions", {
+      const r = await fetchWithRetry(API + "/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1508,7 +1536,10 @@
           messages: [{ role: "system", content: system }, { role: "user", content: user }]
         })
       });
-      if (!r.ok) throw new Error("Groq API " + r.status);
+      if (!r.ok) {
+        if (r.status === 429) throw new Error("rate_limited");
+        throw new Error("Groq API " + r.status);
+      }
       const rd = r.body.getReader(), dec = new TextDecoder();
       let b = "";
       while (true) {
@@ -1719,7 +1750,9 @@
       try {
         await stream(SYS + " If the answer is not in the text, reply: Not covered in this page.", "CONTENT:\n" + data.text + "\n\nQUESTION: " + q, t);
       } catch (e) {
-        if (err) err.textContent = e.message;
+        if (err) err.textContent = e.message === "rate_limited"
+          ? "⏳ Too many requests — please wait a moment and try again."
+          : e.message;
       } finally {
         if (badgeEl) badgeEl.classList.remove("generating");
         if (aiModal) aiModal.classList.remove("generating");
