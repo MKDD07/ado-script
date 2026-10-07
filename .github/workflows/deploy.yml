@@ -31,15 +31,11 @@ jobs:
           if [ -z "$GROQ_SECRET" ]; then
             echo "::warning ::GROQ_API_KEY secret is not set or empty in repository secrets!"
           else
-            echo "GROQ_API_KEY secret successfully detected."
+            echo "GROQ_API_KEY secret successfully detected (length: ${#GROQ_SECRET})."
           fi
-          cat << EOF > config.js
-          window.env = {
-            GROQ_API_KEY: "$GROQ_SECRET",
-            GROQ_CHAT_MODEL: "openai/gpt-oss-120b",
-            GROQ_API_BASE: "https://api.groq.com/openai/v1"
-          };
-          EOF
+          printf 'window.env = {\n  GROQ_API_KEY: "%s",\n  GROQ_CHAT_MODEL: "openai/gpt-oss-120b",\n  GROQ_API_BASE: "https://api.groq.com/openai/v1"\n};\n' "$GROQ_SECRET" > config.js
+          echo "config.js contents:"
+          cat config.js
           ls -la config.js
 
       - name: Setup Pages
