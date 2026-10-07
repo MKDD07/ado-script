@@ -24,11 +24,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Copy entrypoint for GitHub Pages
-        run: |
-          # Ensure index.html exists for GitHub Pages root
-          cp banganga-blog.html index.html
-
       - name: Inject Groq Configuration
         run: |
           cat << 'EOF' > config.js

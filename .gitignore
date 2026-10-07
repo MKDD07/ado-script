@@ -2,6 +2,7 @@
 /*
 
 # Whitelist files required in repo
+!index.html
 !banganga-blog.html
 !blog-ai-summary.js
 !.gitignore
