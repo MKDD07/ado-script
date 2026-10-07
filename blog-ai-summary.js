@@ -10,20 +10,34 @@
   if (window.__ADO_AI_SUMMARY_INITIALIZED__) return;
   window.__ADO_AI_SUMMARY_INITIALIZED__ = true;
 
-  /* ---- CONFIG (Loaded from .env / window.env with fallback) ---- */
-  let GROQ_KEY = (typeof process !== "undefined" && process.env && process.env.GROQ_API_KEY) ||
-                 (typeof window !== "undefined" && window.env && window.env.GROQ_API_KEY) ||
+  /* ---- CONFIG (Loaded from window.env / .env with fallback) ---- */
+  function getGroqKey() {
+    return (typeof window !== "undefined" && window.env && window.env.GROQ_API_KEY) ||
+           (typeof process !== "undefined" && process.env && process.env.GROQ_API_KEY) ||
+           GROQ_KEY ||
+           "";
+  }
+
+  let GROQ_KEY = (typeof window !== "undefined" && window.env && window.env.GROQ_API_KEY) ||
+                 (typeof process !== "undefined" && process.env && process.env.GROQ_API_KEY) ||
                  "";
-  const CHAT_MODEL = (typeof process !== "undefined" && process.env && process.env.GROQ_CHAT_MODEL) ||
-                     (typeof window !== "undefined" && window.env && window.env.GROQ_CHAT_MODEL) ||
+  const CHAT_MODEL = (typeof window !== "undefined" && window.env && window.env.GROQ_CHAT_MODEL) ||
+                     (typeof process !== "undefined" && process.env && process.env.GROQ_CHAT_MODEL) ||
                      "openai/gpt-oss-120b";
-  const API = (typeof process !== "undefined" && process.env && process.env.GROQ_API_BASE) ||
-              (typeof window !== "undefined" && window.env && window.env.GROQ_API_BASE) ||
+  const API = (typeof window !== "undefined" && window.env && window.env.GROQ_API_BASE) ||
+              (typeof process !== "undefined" && process.env && process.env.GROQ_API_BASE) ||
               "https://api.groq.com/openai/v1";
 
-  // Async loader to parse local .env file if running in static client environment
+  // Async loader to parse local .env file if running in static local development environment
   async function loadEnvConfig() {
-    if (GROQ_KEY) return;
+    if (window.env && window.env.GROQ_API_KEY) {
+      GROQ_KEY = window.env.GROQ_API_KEY;
+      return;
+    }
+    // Only attempt local .env fetch if on localhost / 127.0.0.1 to prevent 404 errors on deployed sites
+    const isLocalHost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:";
+    if (!isLocalHost) return;
+
     try {
       const res = await fetch(".env");
       if (res.ok) {
@@ -1160,7 +1174,7 @@
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: "Bearer " + GROQ_KEY
+            Authorization: "Bearer " + getGroqKey()
           },
           body: JSON.stringify({
             model: CHAT_MODEL,
@@ -1313,7 +1327,7 @@
           const res = await fetch("https://api.groq.com/openai/v1/audio/speech", {
             method: "POST",
             headers: {
-              "Authorization": "Bearer " + GROQ_KEY,
+              "Authorization": "Bearer " + getGroqKey(),
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
@@ -1484,7 +1498,7 @@
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: "Bearer " + GROQ_KEY
+          Authorization: "Bearer " + getGroqKey()
         },
         body: JSON.stringify({
           model: CHAT_MODEL,
